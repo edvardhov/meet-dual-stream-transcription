@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from uuid import UUID
 
 from google import genai
@@ -17,9 +18,19 @@ from app.schemas import MeetingSummary, SpeakerSummary
 logger = logging.getLogger(__name__)
 
 MAX_CHARS_PER_CHUNK = 12_000
-MAX_LLM_ATTEMPTS = 4
+MAX_LLM_ATTEMPTS = 3
+MAX_OUTPUT_TOKENS = 2048
 MUTE_KINDS = {"mic_muted", "meet_muted"}
 UNMUTE_KINDS = {"mic_unmuted", "meet_unmuted"}
+
+_genai_client: genai.Client | None = None
+
+
+def get_genai_client() -> genai.Client:
+    global _genai_client
+    if _genai_client is None:
+        _genai_client = genai.Client(api_key=settings.gemini_api_key)
+    return _genai_client
 
 
 class SummarizationError(RuntimeError):
@@ -98,9 +109,18 @@ def _empty_summary() -> MeetingSummary:
     )
 
 
+def _summary_config() -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=MeetingSummary,
+        temperature=0.2,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+    )
+
+
 class Summarizer:
     def __init__(self) -> None:
-        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.client = get_genai_client()
 
     async def summarize(self, repo: SessionRepository, session_id: UUID) -> Summary:
         """Return the persisted summary row, reusing a cached one when unchanged."""
@@ -118,10 +138,12 @@ class Summarizer:
             summary = _empty_summary()
         else:
             chunks = chunk_transcript(transcript)
-            partials = [await self._generate(self._prompt(chunk)) for chunk in chunks]
-            if len(partials) == 1:
-                summary = partials[0]
+            if len(chunks) == 1:
+                summary = await self._generate(self._prompt(chunks[0]))
             else:
+                partials = await asyncio.gather(
+                    *(self._generate(self._prompt(chunk)) for chunk in chunks)
+                )
                 merged = json.dumps([p.model_dump() for p in partials], indent=2)
                 summary = await self._generate(
                     "Merge these partial meeting summaries into a single coherent summary. "
@@ -136,30 +158,29 @@ class Summarizer:
             "Summarize this meeting transcript. Turns are labelled: 'You' is the local "
             "user's microphone, 'Meeting' is the other participants. Keep attribution "
             "accurate. If a span is marked as microphone muted, treat the local user's "
-            "contribution there as unknown rather than absent.\n\n"
+            "contribution there as unknown rather than absent. Be concise.\n\n"
             f"{transcript}"
         )
 
     async def _generate(self, prompt: str) -> MeetingSummary:
-        """Call Gemini with structured output, retrying transient overload errors."""
+        """Call Gemini via AsyncChat with structured output, retrying transient errors."""
+        config = _summary_config()
         last_error: Exception | None = None
         attempt = 0
+        started = time.monotonic()
+
         for attempt in range(1, MAX_LLM_ATTEMPTS + 1):
             try:
-                response = await self.client.aio.models.generate_content(
+                chat = self.client.aio.chats.create(
                     model=settings.llm_model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=MeetingSummary,
-                        temperature=0.2,
-                    ),
+                    config=config,
                 )
+                response = await chat.send_message(prompt)
             except Exception as exc:
                 last_error = exc
                 if not _is_transient(exc) or attempt == MAX_LLM_ATTEMPTS:
                     break
-                delay = 1.5 * attempt
+                delay = 1.0 * attempt
                 logger.warning(
                     "Gemini transient error (attempt %s/%s), retrying in %.1fs: %s",
                     attempt,
@@ -171,8 +192,18 @@ class Summarizer:
                 continue
 
             if response.parsed is not None:
+                logger.info(
+                    "Gemini summary generated in %.2fs (%s)",
+                    time.monotonic() - started,
+                    settings.llm_model,
+                )
                 return MeetingSummary.model_validate(response.parsed)
             if response.text:
+                logger.info(
+                    "Gemini summary generated in %.2fs (%s)",
+                    time.monotonic() - started,
+                    settings.llm_model,
+                )
                 return MeetingSummary.model_validate_json(response.text)
             last_error = SummarizationError("Gemini returned an empty response")
             break

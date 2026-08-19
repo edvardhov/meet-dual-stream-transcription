@@ -8,7 +8,19 @@ import { BACKEND_URL, MEET_URL_PATTERN, type RuntimeMessage, type StoredSession 
 const SESSION_KEY = "activeSession";
 
 const MIC_NOT_READY =
-  "Microphone is not granted to the extension. Click Enable microphone, choose Allow in the tab that opens, then try again.";
+  "Microphone is not granted to the extension. Click Enable microphone, choose Allow while visiting this site in the tab that opens, then try again.";
+
+const OFFSCREEN_READY_TIMEOUT_MS = 2000;
+const OFFSCREEN_READY_POLL_MS = 50;
+const REINJECT_COOLDOWN_MS = 5000;
+
+/** Per-tab timestamp of last content-script re-injection attempt. */
+const reinjectCooldown = new Map<number, number>();
+
+/** Service workers have no `window`; timers must use the global scope. */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function getSession(): Promise<StoredSession | null> {
   const result = await chrome.storage.session.get(SESSION_KEY);
@@ -55,10 +67,32 @@ async function ensureOffscreen(): Promise<void> {
   });
 }
 
+/**
+ * `createDocument` resolves before the offscreen module registers its message
+ * listener, so messages sent immediately after are dropped. Poll until it
+ * answers a ping.
+ */
+async function waitForOffscreenReady(): Promise<boolean> {
+  const deadline = Date.now() + OFFSCREEN_READY_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    try {
+      const response = (await chrome.runtime.sendMessage({ type: "OFFSCREEN_PING" })) as
+        | { ok?: boolean }
+        | undefined;
+      if (response?.ok) return true;
+    } catch {
+      // Listener not installed yet.
+    }
+    await delay(OFFSCREEN_READY_POLL_MS);
+  }
+  return false;
+}
+
 /** A fresh offscreen document picks up mic grants made on the permission page. */
-async function resetOffscreen(): Promise<void> {
+async function resetOffscreen(): Promise<boolean> {
   await closeOffscreen();
   await ensureOffscreen();
+  return waitForOffscreenReady();
 }
 
 async function sendToOffscreen<T>(message: RuntimeMessage): Promise<T | null> {
@@ -70,17 +104,24 @@ async function sendToOffscreen<T>(message: RuntimeMessage): Promise<T | null> {
   }
 }
 
-async function probeMicInOffscreen(): Promise<{ ok: boolean; error?: string }> {
+async function probeMicInOffscreen(): Promise<{ ok: boolean; denied?: boolean; error?: string }> {
   const status = await sendToOffscreen<{ snapshot?: { capturing?: boolean } }>({
     type: "OFFSCREEN_GET_SNAPSHOT",
   });
   if (status?.snapshot?.capturing) {
     return { ok: true };
   }
-  await resetOffscreen();
-  const response = await sendToOffscreen<{ ok?: boolean; error?: string }>({ type: "OFFSCREEN_PROBE_MIC" });
+  if (!(await resetOffscreen())) {
+    return {
+      ok: false,
+      error: "The capture context did not start in time. Try Start capture again.",
+    };
+  }
+  const response = await sendToOffscreen<{ ok?: boolean; denied?: boolean; error?: string }>({
+    type: "OFFSCREEN_PROBE_MIC",
+  });
   if (!response) return { ok: false, error: MIC_NOT_READY };
-  return { ok: response.ok === true, error: response.error };
+  return { ok: response.ok === true, denied: response.denied === true, error: response.error };
 }
 
 interface StatusPayload {
@@ -89,6 +130,7 @@ interface StatusPayload {
   lastSession: Awaited<ReturnType<typeof getLastSession>>;
   onMeetTab: boolean;
   inMeetCall: boolean;
+  meetPageReachable: boolean;
   snapshot: {
     sessionId: string | null;
     capturing: boolean;
@@ -96,6 +138,39 @@ interface StatusPayload {
     vu: { mic: number; meeting: number };
     elapsedMs: number;
   } | null;
+}
+
+interface ActiveMeetTabState {
+  onMeetTab: boolean;
+  inMeetCall: boolean;
+  meetPageReachable: boolean;
+}
+
+function getMeetObserverScriptFiles(): string[] {
+  const entry = chrome.runtime.getManifest().content_scripts?.find((cs) =>
+    cs.matches?.some((pattern) => pattern.includes("meet.google.com")),
+  );
+  const files = entry?.js;
+  if (!files?.length) {
+    throw new Error("Meet observer content script not found in manifest");
+  }
+  return files;
+}
+
+async function injectMeetObserver(tabId: number): Promise<void> {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: getMeetObserverScriptFiles(),
+  });
+}
+
+async function reinjectMeetObserverIntoOpenTabs(): Promise<void> {
+  const tabs = await chrome.tabs.query({ url: "https://meet.google.com/*" });
+  for (const tab of tabs) {
+    if (tab.id !== undefined) {
+      await injectMeetObserver(tab.id).catch(() => undefined);
+    }
+  }
 }
 
 async function buildStatus(): Promise<StatusPayload> {
@@ -124,12 +199,22 @@ async function buildStatus(): Promise<StatusPayload> {
     session = null;
   }
 
+  let meetTabState: ActiveMeetTabState = {
+    onMeetTab: false,
+    inMeetCall: false,
+    meetPageReachable: false,
+  };
+  try {
+    meetTabState = await getActiveMeetTabState();
+  } catch {
+    // Meet probe must not break GET_STATUS.
+  }
+
   return {
     ok: true,
     session,
     lastSession,
-    onMeetTab: await isActiveTabMeet(),
-    inMeetCall: await isActiveTabInMeetCall(),
+    ...meetTabState,
     snapshot: snap,
   };
 }
@@ -147,8 +232,12 @@ async function queryMeetPageState(
       };
     }
   } catch {
-    await injectMeetObserver(tabId).catch(() => undefined);
-    await new Promise((resolve) => window.setTimeout(resolve, 600));
+    const lastAttempt = reinjectCooldown.get(tabId) ?? 0;
+    if (Date.now() - lastAttempt >= REINJECT_COOLDOWN_MS) {
+      reinjectCooldown.set(tabId, Date.now());
+      await injectMeetObserver(tabId).catch(() => undefined);
+      await delay(600);
+    }
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type: "GET_MEET_PAGE_STATE" });
       if (response?.ok) {
@@ -165,12 +254,19 @@ async function queryMeetPageState(
   return null;
 }
 
-async function isActiveTabInMeetCall(): Promise<boolean> {
+async function getActiveMeetTabState(): Promise<ActiveMeetTabState> {
   const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!active?.id || !active.url || !MEET_URL_PATTERN.test(active.url)) return false;
-  if (isMeetLandingUrl(active.url)) return false;
+  if (!active?.id || !active.url || !MEET_URL_PATTERN.test(active.url)) {
+    return { onMeetTab: false, inMeetCall: false, meetPageReachable: false };
+  }
+  if (isMeetLandingUrl(active.url)) {
+    return { onMeetTab: true, inMeetCall: false, meetPageReachable: false };
+  }
   const state = await queryMeetPageState(active.id);
-  return state?.inCall === true;
+  if (state) {
+    return { onMeetTab: true, inMeetCall: state.inCall, meetPageReachable: true };
+  }
+  return { onMeetTab: true, inMeetCall: false, meetPageReachable: false };
 }
 
 async function assertTabInMeetCall(
@@ -194,11 +290,6 @@ async function assertTabInMeetCall(
   return state;
 }
 
-async function isActiveTabMeet(): Promise<boolean> {
-  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return Boolean(active?.url && MEET_URL_PATTERN.test(active.url));
-}
-
 async function createBackendSession(tabTitle: string): Promise<string> {
   let response: Response;
   try {
@@ -215,13 +306,6 @@ async function createBackendSession(tabTitle: string): Promise<string> {
   }
   const payload = await response.json();
   return payload.id as string;
-}
-
-async function injectMeetObserver(tabId: number): Promise<void> {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["assets/meet-observer.js"],
-  });
 }
 
 async function getTabStreamId(tabId: number): Promise<string> {
@@ -291,7 +375,7 @@ async function startCapture(tabId: number): Promise<void> {
   try {
     const micProbe = await probeMicInOffscreen();
     if (!micProbe.ok) {
-      await setMicGranted(false);
+      if (micProbe.denied) await setMicGranted(false);
       throw new Error(micProbe.error ?? MIC_NOT_READY);
     }
     await setMicGranted(true);
@@ -383,6 +467,19 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
     if (message.type === "GET_MIC_STATUS") {
       const granted = await isMicGranted();
       sendResponse({ ok: true, micGranted: granted });
+      return;
+    }
+    if (message.type === "VERIFY_MIC") {
+      const probe = await probeMicInOffscreen();
+      if (probe.ok) {
+        await setMicGranted(true);
+        await closeOffscreen();
+        chrome.runtime.sendMessage({ type: "MIC_GRANTED" }).catch(() => undefined);
+        sendResponse({ ok: true, micGranted: true });
+      } else {
+        if (probe.denied) await setMicGranted(false);
+        sendResponse({ ok: false, denied: probe.denied === true, error: probe.error });
+      }
       return;
     }
     if (message.type === "MEET_PAGE_STATE") {
@@ -480,4 +577,5 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => undefined);
+  void reinjectMeetObserverIntoOpenTabs();
 });

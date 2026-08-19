@@ -57,6 +57,8 @@ export type RuntimeMessage =
   | { type: "OFFSCREEN_MEET_STATE"; inCall: boolean; muted: boolean | null; tabId: number; observerReady?: boolean }
   | { type: "OFFSCREEN_GET_SNAPSHOT" }
   | { type: "OFFSCREEN_PROBE_MIC" }
+  | { type: "OFFSCREEN_PING" }
+  | { type: "VERIFY_MIC" }
   | { type: "SNAPSHOT"; snapshot: Snapshot }
   | { type: "TRANSCRIPT_EVENT"; item: TranscriptItem }
   | { type: "CAPTURE_STARTED"; sessionId: string }

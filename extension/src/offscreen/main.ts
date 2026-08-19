@@ -22,6 +22,11 @@ function buildSnapshot(): Snapshot {
 }
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
+  if (message.type === "OFFSCREEN_PING") {
+    sendResponse({ ok: true });
+    return true;
+  }
+
   if (message.type === "OFFSCREEN_PROBE_MIC") {
     (async () => {
       try {
@@ -31,6 +36,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
         if (permission.state !== "granted") {
           sendResponse({
             ok: false,
+            denied: true,
             error: `Microphone permission is "${permission.state}" in the capture context`,
           });
           return;
@@ -40,7 +46,8 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
         sendResponse({ ok: true });
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error);
-        sendResponse({ ok: false, error: text });
+        const denied = error instanceof DOMException && error.name === "NotAllowedError";
+        sendResponse({ ok: false, denied, error: text });
       }
     })();
     return true;

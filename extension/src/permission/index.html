@@ -8,6 +8,11 @@
   <body>
     <main>
       <h1>Enable microphone</h1>
+      <p class="hint">
+        When Chrome asks, choose <strong>Allow while visiting this site</strong>.
+        <strong>Allow this time</strong> will not work — capture runs in a separate
+        extension context that needs a persistent grant.
+      </p>
       <p id="status">Requesting microphone access…</p>
       <button id="retry" hidden>Try again</button>
     </main>
