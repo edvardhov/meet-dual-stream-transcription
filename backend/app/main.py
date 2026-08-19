@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.sessions import router as sessions_router
 from app.api.stream import router as stream_router
 from app.core.config import settings
+from app.core.cors import CHROME_EXTENSION_ORIGIN_REGEX
 from app.core.logging import configure_logging
 
 
@@ -20,7 +21,8 @@ app = FastAPI(title="Meet Dual-Stream Transcription", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
+    allow_origins=settings.cors_extra_origin_list,
+    allow_origin_regex=CHROME_EXTENSION_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

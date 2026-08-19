@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.cors import parse_extra_cors_origins
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -11,12 +13,12 @@ class Settings(BaseSettings):
     llm_model: str = "gemini-2.5-flash"
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
-    cors_origins: str = "chrome-extension://*"
+    cors_origins: str = ""
     log_level: str = "INFO"
 
     @property
-    def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+    def cors_extra_origin_list(self) -> list[str]:
+        return parse_extra_cors_origins(self.cors_origins)
 
 
 settings = Settings()

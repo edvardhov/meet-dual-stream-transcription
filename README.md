@@ -13,8 +13,6 @@ flowchart TB
   api --> gemini[Gemini Flash summary]
 ```
 
-
-
 - **Channel 0 (left):** local microphone
 - **Channel 1 (right):** Meet tab audio (remote participants)
 - One Deepgram WebSocket with `multichannel=true&channels=2` keeps a shared timeline for natural ordering.
@@ -69,20 +67,19 @@ previously loaded bundle until you reload.
 1. Open a Google Meet call (`https://meet.google.com/...`).
 2. Click the extension's toolbar icon to open the popup.
 3. Click **Enable microphone**. A dedicated tab opens — click **Allow** when Chrome
-  asks. Wait for the green "Microphone enabled" message before closing the tab.
+   asks. Wait for the green "Microphone enabled" message before closing the tab.
    The side panel cannot show this prompt; if you skip Allow, Start will fail
    with "Permission dismissed".
 4. **Join the call** (not the lobby or Meet home page). The Start button stays
-  disabled until the extension detects in-call controls (Leave call / End call).
+   disabled until the extension detects in-call controls (Leave call / End call).
 5. Open the side panel or popup and press **Start capture**.
    Capture only starts when `meet.google.com` is your **active** tab and you are
    **in an active meeting**.
 6. The side panel shows live transcripts once capture is running.
 7. Click **Summarize** when done. Capture stops automatically when you leave the
-  call, navigate away from Meet, or close the Meet tab.
+   call, navigate away from Meet, or close the Meet tab.
 
 ## Extension controls
-
 
 | Control                      | Description                                                      |
 | ---------------------------- | ---------------------------------------------------------------- |
@@ -92,9 +89,7 @@ previously loaded bundle until you reload.
 | Toolbar badge `REC` / `MUTE` | Visible capture indicator (offscreen docs show no tab indicator) |
 | Meet mute observer           | Best-effort sync; can degrade if Meet DOM changes                |
 
-
 ## Backend endpoints
-
 
 | Method | Path                           | Purpose                                         |
 | ------ | ------------------------------ | ----------------------------------------------- |
@@ -105,6 +100,9 @@ previously loaded bundle until you reload.
 | WS     | `/api/sessions/{id}/stream`    | Binary PCM in, transcript JSON out              |
 | GET    | `/health`                      | Health check                                    |
 
+CORS accepts any Chrome extension origin automatically (`chrome-extension://<id>`).
+You do not need to configure an extension ID in `.env`. Optional `CORS_ORIGINS`
+adds extra web origins (comma-separated) if you add a browser client later.
 
 ## Development
 
