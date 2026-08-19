@@ -90,20 +90,20 @@ export function PopupApp() {
     <main className="w-80 space-y-4 p-4">
       <header>
         <h1 className="text-lg font-semibold">Meet Transcription</h1>
-        <p className="text-sm text-slate-400">Dual-stream live transcription and summary.</p>
+        <p className="text-sm text-fog-300">Dual-stream live transcription and summary.</p>
       </header>
 
-      <section className="rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm">
+      <section className="rounded-lg border border-haiti-800 bg-haiti-900 p-3 text-sm">
         {micGranted ? (
-          <p className="text-emerald-300">Microphone enabled for this extension.</p>
+          <p className="text-fog-100">Microphone enabled for this extension.</p>
         ) : (
           <>
             <p>Microphone permission is required before capture can start.</p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-fog-300">
               Chrome only shows the prompt on a full tab, so this opens one.
             </p>
             <button
-              className="mt-2 w-full rounded bg-indigo-600 px-3 py-2 font-medium hover:bg-indigo-500"
+              className="mt-2 w-full rounded bg-cornflower-500 px-3 py-2 font-medium text-white hover:bg-cornflower-400"
               onClick={() => void enableMicrophone()}
             >
               Enable microphone
@@ -115,7 +115,7 @@ export function PopupApp() {
       <section className="space-y-2">
         {!isActive ? (
           <button
-            className="w-full rounded bg-emerald-600 px-3 py-2 font-medium hover:bg-emerald-500 disabled:opacity-50"
+            className="w-full rounded bg-cornflower-500 px-3 py-2 font-medium text-white hover:bg-cornflower-400 disabled:opacity-50"
             disabled={busy || !micGranted || !onMeetTab || !inMeetCall}
             onClick={() => void startCapture()}
           >
@@ -129,7 +129,7 @@ export function PopupApp() {
           </button>
         ) : (
           <button
-            className="w-full rounded bg-rose-600 px-3 py-2 font-medium hover:bg-rose-500 disabled:opacity-50"
+            className="w-full rounded border border-fog-300 bg-haiti-700 px-3 py-2 font-medium text-white hover:bg-haiti-600 disabled:opacity-50"
             disabled={busy}
             onClick={() => void stopCapture()}
           >
@@ -137,7 +137,7 @@ export function PopupApp() {
           </button>
         )}
         <button
-          className="w-full rounded bg-slate-800 px-3 py-2 text-sm hover:bg-slate-700"
+          className="w-full rounded bg-haiti-800 px-3 py-2 text-sm hover:bg-haiti-700"
           onClick={() => void openSidePanel()}
         >
           Open side panel
@@ -145,12 +145,12 @@ export function PopupApp() {
       </section>
 
       {isActive && (
-        <p className="text-xs text-amber-300">
+        <p className="text-xs text-fog-200">
           Meet&apos;s mute button stops your transcription when sync is active.
         </p>
       )}
 
-      {error && <p className="text-sm text-rose-400">{error}</p>}
+      {error && <p className="text-sm text-fog-200">{error}</p>}
     </main>
   );
 }

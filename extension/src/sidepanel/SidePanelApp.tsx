@@ -29,12 +29,12 @@ function VuMeter({ label, level }: { label: string; level: number }) {
   const pct = Math.min(100, Math.round(level * 400));
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs text-slate-400">
+      <div className="mb-1 flex justify-between text-xs text-fog-300">
         <span>{label}</span>
         <span>{pct}%</span>
       </div>
-      <div className="h-2 rounded bg-slate-800">
-        <div className="h-2 rounded bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+      <div className="h-2 rounded bg-haiti-800">
+        <div className="h-2 rounded bg-cornflower-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -56,7 +56,7 @@ function MicBanner({
 
   if (effectiveMuted) {
     return (
-      <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+      <div className="rounded border border-haiti-700 bg-haiti-900 px-3 py-2 text-sm text-fog-200">
         Mic muted — you are not being transcribed
         {meetSynced && session?.meetMuted ? " (via Google Meet)" : ""}
       </div>
@@ -65,7 +65,7 @@ function MicBanner({
 
   if (meetSynced) {
     return (
-      <div className="rounded border border-emerald-800 bg-emerald-950 px-3 py-2 text-sm text-emerald-100">
+      <div className="rounded border border-cornflower-800 bg-cornflower-950 px-3 py-2 text-sm text-fog-100">
         Meet mute is synced — muting in Google Meet stops your transcription.
       </div>
     );
@@ -304,11 +304,11 @@ export function SidePanelApp() {
 
   return (
     <main className="flex h-screen flex-col">
-      <header className="space-y-3 border-b border-slate-800 p-4">
+      <header className="space-y-3 border-b border-haiti-800 p-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">Live Transcript</h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-fog-300">
               {isActive
                 ? (session?.tabTitle ?? "Recording")
                 : lastSessionTitle
@@ -316,20 +316,20 @@ export function SidePanelApp() {
                   : "No active session"}
             </p>
           </div>
-          <div className="text-sm font-mono text-slate-300">{formatElapsed(elapsedMs)}</div>
+          <div className="text-sm font-mono text-fog-200">{formatElapsed(elapsedMs)}</div>
         </div>
         {micGranted ? (
-          <div className="rounded border border-emerald-800 bg-emerald-950 px-3 py-2 text-sm text-emerald-100">
+          <div className="rounded border border-cornflower-800 bg-cornflower-950 px-3 py-2 text-sm text-fog-100">
             Microphone enabled for this extension.
           </div>
         ) : (
-          <div className="space-y-2 rounded border border-indigo-800 bg-indigo-950 px-3 py-2 text-sm">
-            <p className="text-indigo-100">
+          <div className="space-y-2 rounded border border-cornflower-800 bg-haiti-900 px-3 py-2 text-sm">
+            <p className="text-fog-100">
               Microphone access is required. Chrome only shows the prompt on a full tab — not
               here in the side panel.
             </p>
             <button
-              className="w-full rounded bg-indigo-600 px-3 py-1 font-medium hover:bg-indigo-500"
+              className="w-full rounded bg-cornflower-500 px-3 py-1 font-medium text-white hover:bg-cornflower-400"
               onClick={() => void enableMicrophone()}
             >
               Enable microphone
@@ -339,7 +339,7 @@ export function SidePanelApp() {
 
         {!isActive ? (
           <button
-            className="w-full rounded bg-emerald-600 px-3 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-50"
+            className="w-full rounded bg-cornflower-500 px-3 py-2 text-sm font-medium text-white hover:bg-cornflower-400 disabled:opacity-50"
             disabled={busy || !micGranted || !onMeetTab || !inMeetCall}
             onClick={() => void startCapture()}
           >
@@ -353,7 +353,7 @@ export function SidePanelApp() {
           </button>
         ) : (
           <button
-            className="w-full rounded bg-rose-600 px-3 py-2 text-sm font-medium hover:bg-rose-500 disabled:opacity-50"
+            className="w-full rounded border border-fog-300 bg-haiti-700 px-3 py-2 text-sm font-medium text-white hover:bg-haiti-600 disabled:opacity-50"
             disabled={busy}
             onClick={() => void stopCapture()}
           >
@@ -362,13 +362,13 @@ export function SidePanelApp() {
         )}
 
         {error && (
-          <p className="rounded border border-rose-800 bg-rose-950 px-3 py-2 text-sm text-rose-200">
+          <p className="rounded border border-cornflower-400 bg-haiti-900 px-3 py-2 text-sm text-fog-100">
             {error}
           </p>
         )}
 
         {!isActive && canSummarize && (
-          <div className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+          <div className="rounded border border-haiti-700 bg-haiti-900 px-3 py-2 text-sm text-fog-200">
             Capture stopped. Transcript is kept — press Summarize when ready.
           </div>
         )}
@@ -381,24 +381,24 @@ export function SidePanelApp() {
         <div className="flex flex-wrap gap-2">
           {showExtensionMute && (
             <button
-              className="rounded bg-slate-800 px-3 py-1 text-sm disabled:opacity-50"
+              className="rounded bg-haiti-800 px-3 py-1 text-sm disabled:opacity-50"
               disabled={!isActive}
               onClick={() => void toggleMute()}
             >
               {session?.extensionMuted ? "Unmute extension mic" : "Mute extension mic"}
             </button>
           )}
-          <button className="rounded bg-slate-800 px-3 py-1 text-sm" onClick={() => setViewMode((v) => (v === "timeline" ? "columns" : "timeline"))}>
+          <button className="rounded bg-haiti-800 px-3 py-1 text-sm" onClick={() => setViewMode((v) => (v === "timeline" ? "columns" : "timeline"))}>
             {viewMode === "timeline" ? "Split view" : "Timeline view"}
           </button>
-          <button className="rounded bg-slate-800 px-3 py-1 text-sm" onClick={exportMarkdown}>Copy markdown</button>
-          <button className="rounded bg-indigo-700 px-3 py-1 text-sm disabled:opacity-50" disabled={!canSummarize || summaryLoading} onClick={() => void summarize()}>
+          <button className="rounded bg-haiti-800 px-3 py-1 text-sm" onClick={exportMarkdown}>Copy markdown</button>
+          <button className="rounded bg-cornflower-600 px-3 py-1 text-sm text-white hover:bg-cornflower-500 disabled:opacity-50" disabled={!canSummarize || summaryLoading} onClick={() => void summarize()}>
             {summaryLoading ? "Summarizing..." : "Summarize"}
           </button>
         </div>
         <div className="flex gap-2 text-sm">
-          <button className={tab === "transcript" ? "text-white" : "text-slate-500"} onClick={() => setTab("transcript")}>Transcript</button>
-          <button className={tab === "summary" ? "text-white" : "text-slate-500"} onClick={() => setTab("summary")}>Summary</button>
+          <button className={tab === "transcript" ? "text-white" : "text-fog-400"} onClick={() => setTab("transcript")}>Transcript</button>
+          <button className={tab === "summary" ? "text-white" : "text-fog-400"} onClick={() => setTab("summary")}>Summary</button>
         </div>
       </header>
 
@@ -413,7 +413,7 @@ export function SidePanelApp() {
           }}
         >
           {timeline.length === 0 && (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-fog-300">
               {isActive
                 ? "Listening… speak, or wait for someone in the call to talk."
                 : "No transcript yet. Open a Google Meet tab and press Start capture."}
@@ -425,14 +425,14 @@ export function SidePanelApp() {
                 <article
                   key={item.id}
                   className={`max-w-[85%] rounded px-3 py-2 text-sm ${
-                    item.channel === 0 ? "mr-auto bg-indigo-950" : "ml-auto bg-emerald-950"
-                  } ${item.type === "interim" ? "italic text-slate-400" : ""}`}
+                    item.channel === 0 ? "mr-auto bg-cornflower-950" : "ml-auto border border-fog-400/30 bg-haiti-800"
+                  } ${item.type === "interim" ? "italic text-fog-300" : ""}`}
                 >
                   {item.type === "session_event" ? (
-                    <p className="text-xs text-amber-300">[{item.text}]</p>
+                    <p className="text-xs text-fog-200">[{item.text}]</p>
                   ) : (
                     <>
-                      <p className="mb-1 text-xs text-slate-400">{item.speaker} · {formatClock(item.startMs)}</p>
+                      <p className="mb-1 text-xs text-fog-300">{item.speaker} · {formatClock(item.startMs)}</p>
                       <p>{item.text || "…"}</p>
                     </>
                   )}
@@ -446,7 +446,7 @@ export function SidePanelApp() {
                   <h2 className="mb-2 text-sm font-semibold">{channel === 0 ? "You" : "Meeting"}</h2>
                   <div className="space-y-2">
                     {timeline.filter((item) => item.channel === channel).map((item) => (
-                      <p key={item.id} className={`rounded bg-slate-900 p-2 text-sm ${item.type === "interim" ? "italic text-slate-400" : ""}`}>
+                      <p key={item.id} className={`rounded bg-haiti-900 p-2 text-sm ${item.type === "interim" ? "italic text-fog-300" : ""}`}>
                         {item.text}
                       </p>
                     ))}
@@ -459,7 +459,7 @@ export function SidePanelApp() {
       ) : (
         <div className="flex-1 overflow-y-auto p-4 text-sm">
           {!summary ? (
-            <p className="text-slate-400">Run summarize to generate a meeting summary.</p>
+            <p className="text-fog-300">Run summarize to generate a meeting summary.</p>
           ) : (
             <div className="space-y-4">
               <section>

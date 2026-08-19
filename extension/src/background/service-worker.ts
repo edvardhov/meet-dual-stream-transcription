@@ -1,3 +1,4 @@
+import { badge } from "../shared/brand";
 import { clearLastSession, getLastSession, setLastSession } from "../shared/lastSession";
 import { isMeetLandingUrl } from "../shared/meetCallState";
 import { isMicGranted, setMicGranted } from "../shared/micPermission";
@@ -26,7 +27,9 @@ async function updateBadge(session: StoredSession | null): Promise<void> {
   }
   const effectiveMuted = session.extensionMuted || session.meetMuted === true;
   await chrome.action.setBadgeText({ text: effectiveMuted ? "MUTE" : "REC" });
-  await chrome.action.setBadgeBackgroundColor({ color: effectiveMuted ? "#6b7280" : "#dc2626" });
+  await chrome.action.setBadgeBackgroundColor({
+    color: effectiveMuted ? badge.muted : badge.recording,
+  });
 }
 
 async function hasOffscreen(): Promise<boolean> {
