@@ -32,15 +32,6 @@ export default defineManifest({
     service_worker: "src/background/service-worker.ts",
     type: "module",
   },
-  commands: {
-    "toggle-mic-mute": {
-      suggested_key: {
-        default: "Ctrl+Shift+M",
-        mac: "Command+Shift+M",
-      },
-      description: "Toggle extension microphone mute",
-    },
-  },
   web_accessible_resources: [
     {
       resources: ["assets/*"],

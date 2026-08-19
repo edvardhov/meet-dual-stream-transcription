@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isMicGranted } from "../shared/micPermission";
+import { effectiveMuted } from "../shared/muteState";
 import { BACKEND_URL, type Snapshot, type StoredSession, type TranscriptItem } from "../shared/types";
 
 interface MeetingSummary {
@@ -49,16 +50,14 @@ function MicBanner({
 }) {
   if (!session && !capturing) return null;
 
-  const effectiveMuted =
-    (session?.extensionMuted ?? false) || session?.meetMuted === true;
+  const muted = effectiveMuted(session?.meetMuted ?? null);
   const meetSynced =
     session?.meetMuteKnown === true || session?.meetMuted !== null;
 
-  if (effectiveMuted) {
+  if (muted) {
     return (
       <div className="rounded border border-haiti-700 bg-haiti-900 px-3 py-2 text-sm text-fog-200">
-        Mic muted — you are not being transcribed
-        {meetSynced && session?.meetMuted ? " (via Google Meet)" : ""}
+        Mic muted in Google Meet — you are not being transcribed
       </div>
     );
   }
@@ -246,16 +245,6 @@ export function SidePanelApp() {
     }
   }
 
-  async function toggleMute() {
-    if (!isActive) return;
-    const nextMuted = !(session?.extensionMuted ?? false);
-    await chrome.runtime.sendMessage({
-      type: "SET_EXTENSION_MUTE",
-      muted: nextMuted,
-    });
-    await refreshStatus();
-  }
-
   async function summarize() {
     const sessionId = backendSessionId;
     if (!sessionId) {
@@ -283,10 +272,7 @@ export function SidePanelApp() {
 
   const isActive =
     capturing || session?.state === "active" || session?.state === "starting";
-  const meetSynced =
-    session?.meetMuteKnown === true || session?.meetMuted !== null;
   const canSummarize = Boolean(backendSessionId);
-  const showExtensionMute = isActive && !meetSynced;
 
   const timeline = useMemo(() => {
     return [...transcript].sort((a, b) => a.startMs - b.startMs);
@@ -379,15 +365,6 @@ export function SidePanelApp() {
           <VuMeter label="Meeting (tab)" level={vu.meeting} />
         </div>
         <div className="flex flex-wrap gap-2">
-          {showExtensionMute && (
-            <button
-              className="rounded bg-haiti-800 px-3 py-1 text-sm disabled:opacity-50"
-              disabled={!isActive}
-              onClick={() => void toggleMute()}
-            >
-              {session?.extensionMuted ? "Unmute extension mic" : "Mute extension mic"}
-            </button>
-          )}
           <button className="rounded bg-haiti-800 px-3 py-1 text-sm" onClick={() => setViewMode((v) => (v === "timeline" ? "columns" : "timeline"))}>
             {viewMode === "timeline" ? "Split view" : "Timeline view"}
           </button>

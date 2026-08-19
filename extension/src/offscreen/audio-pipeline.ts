@@ -1,4 +1,5 @@
 import { RingBuffer } from "../shared/pcm";
+import { effectiveMuted } from "../shared/muteState";
 import type { TranscriptItem } from "../shared/types";
 
 export interface PipelineConfig {
@@ -22,20 +23,25 @@ export class AudioPipeline {
   private sendTimer: number | null = null;
   private micVu = 0;
   private meetingVu = 0;
-  private extensionMuted = false;
   private meetMuted: boolean | null = null;
+  private pendingMeetMutedControl: boolean | null = null;
   private startedAt = Date.now();
 
   private applyEffectiveMute(): void {
-    const effectiveMuted = this.extensionMuted || this.meetMuted === true;
+    const muted = effectiveMuted(this.meetMuted);
     if (!this.micTrack || !this.micGain || !this.captureCtx) return;
-    if (effectiveMuted) {
+    if (muted) {
       this.micTrack.enabled = false;
       this.micGain.gain.setTargetAtTime(0, this.captureCtx.currentTime, 0.015);
     } else {
       this.micTrack.enabled = true;
       this.micGain.gain.setTargetAtTime(1, this.captureCtx.currentTime, 0.015);
     }
+  }
+
+  setInitialMeetMuted(muted: boolean | null): void {
+    this.meetMuted = muted;
+    if (muted === true) this.pendingMeetMutedControl = true;
   }
 
   private async openMicStream(): Promise<MediaStream> {
@@ -84,6 +90,7 @@ export class AudioPipeline {
     this.captureCtx.createMediaStreamSource(this.micStream).connect(this.micGain);
     this.micGain.connect(merger, 0, 0);
     this.captureCtx.createMediaStreamSource(this.tabStream).connect(merger, 0, 1);
+    this.applyEffectiveMute();
 
     const worklet = new AudioWorkletNode(this.captureCtx, "pcm-encoder", {
       numberOfInputs: 1,
@@ -150,6 +157,11 @@ export class AudioPipeline {
     socket.onclose = (event) => {
       if (!event.wasClean) config.onError("Backend connection lost");
     };
+
+    if (this.pendingMeetMutedControl) {
+      this.pendingMeetMutedControl = null;
+      this.sendControl("meet_muted");
+    }
   }
 
   private updateVuFromPcm(buffer: ArrayBuffer): void {
@@ -178,13 +190,8 @@ export class AudioPipeline {
     }
   }
 
-  setExtensionMuted(muted: boolean): void {
-    this.extensionMuted = muted;
-    this.applyEffectiveMute();
-    this.sendControl(muted ? "mic_muted" : "mic_unmuted");
-  }
-
   setMeetMuted(muted: boolean | null): void {
+    if (this.meetMuted === muted) return;
     this.meetMuted = muted;
     this.applyEffectiveMute();
     if (muted === true) this.sendControl("meet_muted");

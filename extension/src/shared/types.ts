@@ -14,7 +14,6 @@ export interface StoredSession {
   tabTitle: string;
   state: SessionState;
   startedAt: number;
-  extensionMuted: boolean;
   meetMuted: boolean | null;
   meetMuteKnown: boolean;
   error?: string;
@@ -45,11 +44,19 @@ export type RuntimeMessage =
   | { type: "STOP_CAPTURE" }
   | { type: "GET_SNAPSHOT" }
   | { type: "GET_STATUS" }
-  | { type: "SET_EXTENSION_MUTE"; muted: boolean }
   | { type: "MEET_PAGE_STATE"; inCall: boolean; muted: boolean | null; tabId: number; observerReady?: boolean }
   | { type: "SESSION_UPDATED"; session: StoredSession }
-  | { type: "OFFSCREEN_START"; sessionId: string; streamId: string; wsUrl: string }
+  | {
+      type: "OFFSCREEN_START";
+      sessionId: string;
+      streamId: string;
+      wsUrl: string;
+      initialMeetMuted: boolean | null;
+    }
   | { type: "OFFSCREEN_STOP" }
+  | { type: "OFFSCREEN_MEET_STATE"; inCall: boolean; muted: boolean | null; tabId: number; observerReady?: boolean }
+  | { type: "OFFSCREEN_GET_SNAPSHOT" }
+  | { type: "OFFSCREEN_PROBE_MIC" }
   | { type: "SNAPSHOT"; snapshot: Snapshot }
   | { type: "TRANSCRIPT_EVENT"; item: TranscriptItem }
   | { type: "CAPTURE_STARTED"; sessionId: string }
@@ -57,7 +64,6 @@ export type RuntimeMessage =
   | { type: "SESSION_STATE"; session: StoredSession | null }
   | { type: "OPEN_SIDE_PANEL" }
   | { type: "MIC_GRANTED" }
-  | { type: "GET_MIC_STATUS" }
-  | { type: "PROBE_MIC" };
+  | { type: "GET_MIC_STATUS" };
 
 export const MEET_URL_PATTERN = /^https:\/\/meet\.google\.com\//;

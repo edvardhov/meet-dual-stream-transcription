@@ -1,6 +1,7 @@
 import { badge } from "../shared/brand";
 import { clearLastSession, getLastSession, setLastSession } from "../shared/lastSession";
 import { isMeetLandingUrl } from "../shared/meetCallState";
+import { effectiveMuted } from "../shared/muteState";
 import { isMicGranted, setMicGranted } from "../shared/micPermission";
 import { BACKEND_URL, MEET_URL_PATTERN, type RuntimeMessage, type StoredSession } from "../shared/types";
 
@@ -25,10 +26,10 @@ async function updateBadge(session: StoredSession | null): Promise<void> {
     await chrome.action.setBadgeText({ text: "" });
     return;
   }
-  const effectiveMuted = session.extensionMuted || session.meetMuted === true;
-  await chrome.action.setBadgeText({ text: effectiveMuted ? "MUTE" : "REC" });
+  const effective = effectiveMuted(session.meetMuted);
+  await chrome.action.setBadgeText({ text: effective ? "MUTE" : "REC" });
   await chrome.action.setBadgeBackgroundColor({
-    color: effectiveMuted ? badge.muted : badge.recording,
+    color: effective ? badge.muted : badge.recording,
   });
 }
 
@@ -71,13 +72,13 @@ async function sendToOffscreen<T>(message: RuntimeMessage): Promise<T | null> {
 
 async function probeMicInOffscreen(): Promise<{ ok: boolean; error?: string }> {
   const status = await sendToOffscreen<{ snapshot?: { capturing?: boolean } }>({
-    type: "GET_SNAPSHOT",
+    type: "OFFSCREEN_GET_SNAPSHOT",
   });
   if (status?.snapshot?.capturing) {
     return { ok: true };
   }
   await resetOffscreen();
-  const response = await sendToOffscreen<{ ok?: boolean; error?: string }>({ type: "PROBE_MIC" });
+  const response = await sendToOffscreen<{ ok?: boolean; error?: string }>({ type: "OFFSCREEN_PROBE_MIC" });
   if (!response) return { ok: false, error: MIC_NOT_READY };
   return { ok: response.ok === true, error: response.error };
 }
@@ -99,7 +100,7 @@ interface StatusPayload {
 
 async function buildStatus(): Promise<StatusPayload> {
   const offscreen = await sendToOffscreen<{ snapshot?: StatusPayload["snapshot"] }>({
-    type: "GET_SNAPSHOT",
+    type: "OFFSCREEN_GET_SNAPSHOT",
   });
   const snap = offscreen?.snapshot ?? null;
   let session = await getSession();
@@ -113,7 +114,6 @@ async function buildStatus(): Promise<StatusPayload> {
         tabTitle: session?.tabTitle ?? "Google Meet",
         state: "active",
         startedAt: session?.startedAt ?? Date.now(),
-        extensionMuted: session?.extensionMuted ?? false,
         meetMuted: session?.meetMuted ?? null,
         meetMuteKnown: session?.meetMuteKnown ?? false,
       };
@@ -173,7 +173,9 @@ async function isActiveTabInMeetCall(): Promise<boolean> {
   return state?.inCall === true;
 }
 
-async function assertTabInMeetCall(tabId: number): Promise<void> {
+async function assertTabInMeetCall(
+  tabId: number,
+): Promise<{ inCall: boolean; muted: boolean | null; observerReady: boolean }> {
   const tab = await chrome.tabs.get(tabId);
   if (!tab.url || !MEET_URL_PATTERN.test(tab.url)) {
     throw new Error(
@@ -189,6 +191,7 @@ async function assertTabInMeetCall(tabId: number): Promise<void> {
       "Join the Google Meet call first. Capture only works during an active meeting — not the lobby or home screen.",
     );
   }
+  return state;
 }
 
 async function isActiveTabMeet(): Promise<boolean> {
@@ -262,7 +265,7 @@ async function resolveMeetTabId(hintTabId?: number): Promise<number> {
 
 async function startCapture(tabId: number): Promise<void> {
   const resolvedTabId = await resolveMeetTabId(tabId);
-  await assertTabInMeetCall(resolvedTabId);
+  const meetState = await assertTabInMeetCall(resolvedTabId);
   const tab = await chrome.tabs.get(resolvedTabId);
 
   const existing = await getSession();
@@ -272,15 +275,17 @@ async function startCapture(tabId: number): Promise<void> {
   }
 
   const tabTitle = tab.title ?? "Google Meet";
+  const meetMuted = meetState.muted;
+  const meetMuteKnown = meetState.observerReady || meetState.muted !== null;
+
   await setSession({
     sessionId: "",
     tabId: resolvedTabId,
     tabTitle,
     state: "starting",
     startedAt: Date.now(),
-    extensionMuted: false,
-    meetMuted: null,
-    meetMuteKnown: false,
+    meetMuted,
+    meetMuteKnown,
   });
 
   try {
@@ -298,9 +303,8 @@ async function startCapture(tabId: number): Promise<void> {
       tabTitle,
       state: "starting",
       startedAt: Date.now(),
-      extensionMuted: false,
-      meetMuted: null,
-      meetMuteKnown: false,
+      meetMuted,
+      meetMuteKnown,
     });
 
     const streamId = await getTabStreamId(resolvedTabId);
@@ -311,6 +315,7 @@ async function startCapture(tabId: number): Promise<void> {
       sessionId,
       streamId,
       wsUrl,
+      initialMeetMuted: meetMuted,
     });
 
     if (!response?.ok) throw new Error(response?.error ?? "Failed to start offscreen capture");
@@ -322,9 +327,8 @@ async function startCapture(tabId: number): Promise<void> {
       tabTitle,
       state: "active",
       startedAt: Date.now(),
-      extensionMuted: false,
-      meetMuted: null,
-      meetMuteKnown: false,
+      meetMuted,
+      meetMuteKnown,
     });
   } catch (error) {
     await sendToOffscreen({ type: "OFFSCREEN_STOP" });
@@ -357,14 +361,6 @@ async function stopCapture(): Promise<void> {
   await setSession(null);
 }
 
-async function setExtensionMute(muted: boolean): Promise<void> {
-  const session = await getSession();
-  if (session) {
-    await setSession({ ...session, extensionMuted: muted });
-  }
-  await sendToOffscreen({ type: "SET_EXTENSION_MUTE", muted });
-}
-
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendResponse) => {
   (async () => {
     if (message.type === "START_CAPTURE") {
@@ -375,11 +371,6 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
     if (message.type === "STOP_CAPTURE") {
       await stopCapture();
       sendResponse({ ok: true });
-      return;
-    }
-    if (message.type === "SET_EXTENSION_MUTE") {
-      await setExtensionMute(message.muted);
-      sendResponse({ ok: true, session: await getSession() });
       return;
     }
     if (message.type === "MIC_GRANTED") {
@@ -399,20 +390,24 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
       const tabId = sender.tab?.id;
 
       if (session && tabId === session.tabId) {
-        const next = {
-          ...session,
-          meetMuted: message.muted,
-          meetMuteKnown: message.observerReady === true || message.muted !== null,
-        };
-        await setSession(next);
-        await sendToOffscreen({
-          type: "MEET_PAGE_STATE",
-          inCall: message.inCall,
-          muted: message.muted,
-          observerReady: message.observerReady,
-          tabId: tabId ?? 0,
-        });
-        chrome.runtime.sendMessage({ type: "SESSION_UPDATED", session: next }).catch(() => undefined);
+        const muteChanged = message.muted !== session.meetMuted;
+
+        if (muteChanged) {
+          const next = {
+            ...session,
+            meetMuted: message.muted,
+            meetMuteKnown: message.observerReady === true || message.muted !== null,
+          };
+          await setSession(next);
+          await sendToOffscreen({
+            type: "OFFSCREEN_MEET_STATE",
+            inCall: message.inCall,
+            muted: message.muted,
+            observerReady: message.observerReady,
+            tabId: tabId ?? 0,
+          });
+          chrome.runtime.sendMessage({ type: "SESSION_UPDATED", session: next }).catch(() => undefined);
+        }
 
         if (message.inCall === false && session.state === "active") {
           await stopCapture();
@@ -442,7 +437,6 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
           tabTitle: current?.tabTitle ?? "Google Meet",
           state: "active",
           startedAt: current?.startedAt ?? Date.now(),
-          extensionMuted: current?.extensionMuted ?? false,
           meetMuted: current?.meetMuted ?? null,
           meetMuteKnown: current?.meetMuteKnown ?? false,
         };
@@ -467,13 +461,6 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
     }
   })().catch((error: Error) => sendResponse({ ok: false, error: error.message }));
   return true;
-});
-
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== "toggle-mic-mute") return;
-  const session = await getSession();
-  if (!session) return;
-  await setExtensionMute(!session.extensionMuted);
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
