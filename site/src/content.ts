@@ -22,9 +22,6 @@ export interface Step {
   aside?: string;
 }
 
-export const REPO_URL =
-  "https://github.com/edvardhov/meet-dual-stream-transcription";
-
 export const steps: Step[] = [
   {
     id: "step-01",
@@ -40,7 +37,7 @@ export const steps: Step[] = [
     id: "step-02",
     number: "02",
     title: "Add your API keys",
-    body: "Copy the example env file and paste your Deepgram and Gemini keys. The backend won't start without them.",
+    body: "Copy the example env file and add your Deepgram and Gemini keys. For Docker, DATABASE_URL is already set to @db — do not change it to localhost.",
     commands: ["cp .env.example .env"],
     links: [
       {
@@ -78,7 +75,7 @@ export const steps: Step[] = [
     bullets: [
       "Open chrome://extensions in Chrome",
       "Turn on Developer mode (top-right toggle)",
-      "Click Load unpacked and select the extension/dist folder",
+      "Click Load unpacked and select the extension/dist folder (contains manifest.json after pnpm build — not extension/ itself)",
       "Confirm the card shows Meet Dual-Stream Transcription",
       "Pin the extension from the puzzle icon for quick access",
     ],
@@ -89,11 +86,12 @@ export const steps: Step[] = [
     id: "step-06",
     number: "06",
     title: "Allow the microphone",
-    body: "The extension needs mic permission before capture can start. The side panel cannot show this prompt — use the popup.",
+    body: "Open a Google Meet call, then use the extension popup to grant mic access before capture.",
     bullets: [
-      "Click the extension icon in the toolbar",
+      "Open https://meet.google.com/... in Chrome",
+      "Click the extension icon in the toolbar to open the popup",
       "Click Enable microphone",
-      "In the permission tab, choose Allow while visiting this site (not Allow this time)",
+      "In the permission tab, choose Allow while visiting this site (Allow this time will not work)",
       "Wait for the green Microphone enabled message before closing the tab",
     ],
     aside:
@@ -103,12 +101,12 @@ export const steps: Step[] = [
     id: "step-07",
     number: "07",
     title: "Capture a meeting",
-    body: "Join a real Google Meet call, start capture, and watch live transcripts roll in.",
+    body: "Join an active call, start capture from the popup or side panel, then summarize when you're done.",
     bullets: [
-      "Open https://meet.google.com and join a call (not the lobby)",
-      "Open the popup or side panel and press Start capture",
-      "Watch live transcripts in the side panel",
-      "Click Summarize when you're done",
+      "Join the call — not the lobby or Meet home page. Start stays disabled until Leave call / End call controls appear",
+      "With meet.google.com as your active tab, press Start capture in the popup or side panel",
+      "Watch live transcripts in the side panel while capture runs",
+      "Click Summarize when finished. Capture stops automatically if you leave the call or close the Meet tab",
     ],
   },
 ];
