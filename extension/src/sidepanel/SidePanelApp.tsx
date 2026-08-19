@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isMicGranted } from "../shared/micPermission";
 import { effectiveMuted } from "../shared/muteState";
-import { BACKEND_URL, type Snapshot, type StoredSession, type TranscriptItem } from "../shared/types";
+import { BACKEND_URL, MEET_URL_PATTERN, type Snapshot, type StoredSession, type TranscriptItem } from "../shared/types";
 
 interface MeetingSummary {
   tldr: string;
@@ -89,6 +89,7 @@ export function SidePanelApp() {
   const [lastSessionTitle, setLastSessionTitle] = useState<string | null>(null);
   const [onMeetTab, setOnMeetTab] = useState(false);
   const [inMeetCall, setInMeetCall] = useState(false);
+  const [meetPageReachable, setMeetPageReachable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -165,7 +166,15 @@ export function SidePanelApp() {
 
   async function refreshStatus() {
     const response = await chrome.runtime.sendMessage({ type: "GET_STATUS" });
-    if (!response?.ok) return;
+    if (!response?.ok) {
+      setError(response?.error ?? "Could not reach the extension background.");
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      setOnMeetTab(Boolean(tab?.url && MEET_URL_PATTERN.test(tab.url)));
+      setInMeetCall(false);
+      setMeetPageReachable(false);
+      return;
+    }
+    setError(null);
     const active = (response.session as StoredSession | null) ?? null;
     setSession(active);
     const snap = response.snapshot as Snapshot | null;
@@ -173,6 +182,7 @@ export function SidePanelApp() {
     setCapturing(snap?.capturing ?? false);
     setOnMeetTab(response.onMeetTab === true);
     setInMeetCall(response.inMeetCall === true);
+    setMeetPageReachable(response.meetPageReachable === true);
     setLastSessionTitle(last?.tabTitle ?? null);
     setBackendSessionId(active?.sessionId ?? snap?.sessionId ?? last?.sessionId ?? null);
 
@@ -274,6 +284,17 @@ export function SidePanelApp() {
     capturing || session?.state === "active" || session?.state === "starting";
   const canSummarize = Boolean(backendSessionId);
 
+  const startButtonLabel = (() => {
+    if (busy) return "Starting…";
+    if (!onMeetTab) return "Switch to Google Meet to start";
+    if (onMeetTab && !meetPageReachable) return "Reload the Meet tab to start";
+    if (!inMeetCall) return "Join the meeting to start capture";
+    return "Start capture on this Meet tab";
+  })();
+
+  const startDisabled =
+    busy || !micGranted || !onMeetTab || !meetPageReachable || !inMeetCall;
+
   const timeline = useMemo(() => {
     return [...transcript].sort((a, b) => a.startMs - b.startMs);
   }, [transcript]);
@@ -326,16 +347,10 @@ export function SidePanelApp() {
         {!isActive ? (
           <button
             className="w-full rounded bg-cornflower-500 px-3 py-2 text-sm font-medium text-white hover:bg-cornflower-400 disabled:opacity-50"
-            disabled={busy || !micGranted || !onMeetTab || !inMeetCall}
+            disabled={startDisabled}
             onClick={() => void startCapture()}
           >
-            {busy
-              ? "Starting…"
-              : !onMeetTab
-                ? "Switch to Google Meet to start"
-                : !inMeetCall
-                  ? "Join the meeting to start capture"
-                  : "Start capture on this Meet tab"}
+            {startButtonLabel}
           </button>
         ) : (
           <button

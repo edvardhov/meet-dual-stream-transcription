@@ -93,11 +93,11 @@ export const steps: Step[] = [
     bullets: [
       "Click the extension icon in the toolbar",
       "Click Enable microphone",
-      "In the permission tab, click Allow when Chrome asks",
+      "In the permission tab, choose Allow while visiting this site (not Allow this time)",
       "Wait for the green Microphone enabled message before closing the tab",
     ],
     aside:
-      "If you skip Allow, Start capture will fail with Permission dismissed.",
+      "Allow this time only grants access to that tab — capture needs a persistent extension grant. If you picked the wrong option, click Try again on the permission page.",
   },
   {
     id: "step-07",

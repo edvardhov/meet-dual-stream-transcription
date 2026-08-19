@@ -6,6 +6,7 @@ export function PopupApp() {
   const [micGranted, setMicGranted] = useState(false);
   const [onMeetTab, setOnMeetTab] = useState(false);
   const [inMeetCall, setInMeetCall] = useState(false);
+  const [meetPageReachable, setMeetPageReachable] = useState(false);
   const [session, setSession] = useState<StoredSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,12 +26,14 @@ export function PopupApp() {
     if (status?.ok) {
       setOnMeetTab(status.onMeetTab === true);
       setInMeetCall(status.inMeetCall === true);
+      setMeetPageReachable(status.meetPageReachable === true);
       setSession((status.session as StoredSession | null) ?? null);
       return;
     }
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     setOnMeetTab(Boolean(tab?.url && MEET_URL_PATTERN.test(tab.url)));
     setInMeetCall(false);
+    setMeetPageReachable(false);
     const result = await chrome.storage.session.get("activeSession");
     setSession((result.activeSession as StoredSession | undefined) ?? null);
   }
@@ -86,6 +89,17 @@ export function PopupApp() {
 
   const isActive = session?.state === "active";
 
+  const startButtonLabel = (() => {
+    if (busy) return "Starting…";
+    if (!onMeetTab) return "Open Google Meet to start";
+    if (onMeetTab && !meetPageReachable) return "Reload the Meet tab to start";
+    if (!inMeetCall) return "Join the meeting to start";
+    return "Start capture on this Meet tab";
+  })();
+
+  const startDisabled =
+    busy || !micGranted || !onMeetTab || !meetPageReachable || !inMeetCall;
+
   return (
     <main className="w-80 space-y-4 p-4">
       <header>
@@ -116,16 +130,10 @@ export function PopupApp() {
         {!isActive ? (
           <button
             className="w-full rounded bg-cornflower-500 px-3 py-2 font-medium text-white hover:bg-cornflower-400 disabled:opacity-50"
-            disabled={busy || !micGranted || !onMeetTab || !inMeetCall}
+            disabled={startDisabled}
             onClick={() => void startCapture()}
           >
-            {busy
-              ? "Starting…"
-              : !onMeetTab
-                ? "Open Google Meet to start"
-                : !inMeetCall
-                  ? "Join the meeting to start"
-                  : "Start capture on this Meet tab"}
+            {startButtonLabel}
           </button>
         ) : (
           <button

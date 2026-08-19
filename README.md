@@ -68,8 +68,7 @@ previously loaded bundle until you reload.
 
 1. Open a Google Meet call (`https://meet.google.com/...`).
 2. Click the extension's toolbar icon to open the popup.
-3. Click **Enable microphone**. A dedicated tab opens — click **Allow** when Chrome
-   asks. Wait for the green "Microphone enabled" message before closing the tab.
+3. Click **Enable microphone**. A dedicated tab opens — choose **Allow while visiting this site** when Chrome asks (**Allow this time** will not work). Wait for the green "Microphone enabled" message before closing the tab.
    The side panel cannot show this prompt; if you skip Allow, Start will fail
    with "Permission dismissed".
 4. **Join the call** (not the lobby or Meet home page). The Start button stays

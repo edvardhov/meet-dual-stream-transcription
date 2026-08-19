@@ -26,6 +26,16 @@ p {
   color: var(--brand-fog);
 }
 
+.hint {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.hint strong {
+  color: var(--brand-white);
+}
+
 .ok {
   color: var(--brand-fog);
 }
