@@ -1,0 +1,240 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Brand hex values mirror extension/src/shared/brand.ts
+ * cornflower #614EFA, fog #DFDCFE, haiti #131032, white #FFFFFF
+ */
+:root {
+  --brand-cornflower: #614efa;
+  --brand-fog: #dfdcfe;
+  --brand-haiti: #131032;
+  --brand-white: #ffffff;
+  --brand-surface: #211d4a;
+  --brand-ground: #0a0918;
+  --brand-border: rgba(223, 220, 254, 0.12);
+  --brand-glow: rgba(97, 78, 250, 0.22);
+  --step-card-max-width: 42rem;
+}
+
+@layer base {
+  html {
+    overscroll-behavior-y: none;
+    background-color: var(--brand-ground);
+  }
+
+  body {
+    @apply font-sans antialiased;
+    color: var(--brand-fog);
+    background-color: var(--brand-ground);
+    min-height: 100vh;
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  .font-heading {
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--brand-ground);
+  }
+
+  ::selection {
+    background: var(--brand-cornflower);
+    color: var(--brand-white);
+  }
+}
+
+@layer components {
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes wave-bar {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+
+  .page-section {
+    scroll-margin-top: 1.5rem;
+  }
+
+  .hero-section {
+    position: relative;
+    z-index: 10;
+    overflow: visible;
+    padding-top: 3rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (min-width: 640px) {
+    .hero-section {
+      padding-top: 5rem;
+      padding-bottom: 6rem;
+    }
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100vw;
+    height: 500px;
+    background: radial-gradient(
+      ellipse at center,
+      var(--brand-glow) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .setup-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .setup-main {
+      gap: 3.5rem;
+    }
+  }
+
+  .page-grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 180px 180px;
+  }
+
+  .step-reveal {
+    opacity: 0;
+    transform: translateY(1.5rem);
+    transition:
+      opacity 0.6s ease-out,
+      transform 0.6s ease-out;
+  }
+
+  .step-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .step-reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+
+  .wave-bar {
+    transform-origin: bottom center;
+    animation: wave-bar 1.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wave-bar {
+      animation: none;
+      transform: scaleY(0.6);
+    }
+  }
+
+  .hero-enter {
+    opacity: 0;
+    transform: translateY(1rem);
+    animation: fade-up 0.8s ease-out forwards;
+  }
+
+  .hero-enter-delay-1 {
+    animation-delay: 0.1s;
+  }
+
+  .hero-enter-delay-2 {
+    animation-delay: 0.2s;
+  }
+
+  .hero-enter-delay-3 {
+    animation-delay: 0.35s;
+  }
+
+  .hero-enter-delay-4 {
+    animation-delay: 0.5s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-enter {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium transition-colors;
+    background: var(--brand-cornflower);
+    color: var(--brand-white);
+  }
+
+  .btn-primary:hover {
+    background: #8577fb;
+  }
+
+  .btn-primary:focus-visible {
+    @apply outline-none ring-2 ring-cornflower-400 ring-offset-2 ring-offset-[#0a0918];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors;
+    border-color: var(--brand-border);
+    color: var(--brand-fog);
+    background: transparent;
+  }
+
+  .btn-ghost:hover {
+    border-color: rgba(223, 220, 254, 0.3);
+    background: rgba(33, 29, 74, 0.5);
+  }
+
+  .btn-ghost:focus-visible {
+    @apply outline-none ring-2 ring-cornflower-400 ring-offset-2 ring-offset-[#0a0918];
+  }
+
+  .card-surface {
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    @apply rounded-xl;
+  }
+
+}

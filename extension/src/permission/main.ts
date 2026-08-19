@@ -8,6 +8,11 @@
  * dismissed"). A full tab is the only dependable surface.
  */
 
+import { applyBrandCssVars } from "../shared/brand";
+import "./styles.css";
+
+applyBrandCssVars();
+
 const statusEl = document.getElementById("status") as HTMLParagraphElement;
 const retryEl = document.getElementById("retry") as HTMLButtonElement;
 

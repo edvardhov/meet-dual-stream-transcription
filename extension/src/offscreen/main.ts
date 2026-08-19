@@ -22,7 +22,7 @@ function buildSnapshot(): Snapshot {
 }
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
-  if (message.type === "PROBE_MIC") {
+  if (message.type === "OFFSCREEN_PROBE_MIC") {
     (async () => {
       try {
         const permission = await navigator.permissions.query({
@@ -54,6 +54,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
     transcript.length = 0;
     activeSessionId = message.sessionId;
     pipeline = new AudioPipeline();
+    pipeline.setInitialMeetMuted(message.initialMeetMuted);
     pipeline
       .start({
         streamId: message.streamId,
@@ -107,19 +108,13 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResp
     return true;
   }
 
-  if (message.type === "GET_SNAPSHOT") {
+  if (message.type === "OFFSCREEN_GET_SNAPSHOT") {
     vu = pipeline?.getVu() ?? vu;
     sendResponse({ type: "SNAPSHOT", snapshot: buildSnapshot() });
     return true;
   }
 
-  if (message.type === "SET_EXTENSION_MUTE") {
-    pipeline?.setExtensionMuted(message.muted);
-    sendResponse({ ok: true });
-    return true;
-  }
-
-  if (message.type === "MEET_PAGE_STATE") {
+  if (message.type === "OFFSCREEN_MEET_STATE") {
     pipeline?.sendMeetMuteState(message.muted);
     sendResponse({ ok: true });
     return true;

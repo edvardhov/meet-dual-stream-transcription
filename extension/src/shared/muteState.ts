@@ -29,3 +29,7 @@ export function findMuteButton(): HTMLElement | null {
   }
   return null;
 }
+
+export function effectiveMuted(meetMuted: boolean | null): boolean {
+  return meetMuted === true;
+}
