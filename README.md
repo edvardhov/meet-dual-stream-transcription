@@ -2,6 +2,8 @@
 
 Chrome MV3 extension + FastAPI backend that captures **microphone** and **Google Meet tab audio** as separate stereo channels, transcribes them live via Deepgram multichannel streaming, and generates a Gemini meeting summary.
 
+**[Interactive setup guide](https://edvardhov.github.io/meet-dual-stream-transcription/)** — step-by-step walkthrough with demo video.
+
 ## Architecture
 
 ```mermaid
@@ -100,6 +102,17 @@ previously loaded bundle until you reload.
 | WS     | `/api/sessions/{id}/stream`    | Binary PCM in, transcript JSON out              |
 | GET    | `/health`                      | Health check                                    |
 
+## Configuration
+
+For Docker Compose, `.env` needs at least your API keys plus the database URL
+(use `@db`, not `localhost`):
+
+```env
+DEEPGRAM_API_KEY=...
+GEMINI_API_KEY=...
+DATABASE_URL=postgresql+asyncpg://meet:meet@db:5432/meet_transcription
+```
+
 CORS accepts any Chrome extension origin automatically (`chrome-extension://<id>`).
 You do not need to configure an extension ID in `.env`. Optional `CORS_ORIGINS`
 adds extra web origins (comma-separated) if you add a browser client later.
@@ -125,3 +138,13 @@ ruff check . && mypy app
 cd extension
 pnpm test
 ```
+
+### Setup guide site
+
+```bash
+cd site
+pnpm install
+pnpm dev
+```
+
+Built and deployed to GitHub Pages on push to `main` (see `.github/workflows/pages.yml`).
