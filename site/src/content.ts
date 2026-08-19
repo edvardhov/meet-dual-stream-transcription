@@ -2,8 +2,11 @@ export type DemoVideo =
   | { kind: "file"; src: string; poster?: string }
   | { kind: "youtube"; id: string };
 
-/** Set this and the placeholder is replaced by a real player. */
-export const demoVideo: DemoVideo | null = null;
+/** Served from site/public/ — copied to dist root on build. */
+export const demoVideo: DemoVideo = {
+  kind: "file",
+  src: `${import.meta.env.BASE_URL}demo.mp4`,
+};
 
 export interface StepLink {
   label: string;
