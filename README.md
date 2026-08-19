@@ -50,7 +50,19 @@ pnpm install
 pnpm build
 ```
 
-Load unpacked extension in Chrome from `extension/dist`.
+### Load the extension in Chrome
+
+1. Open **Chrome** and go to `chrome://extensions`.
+2. Turn on **Developer mode** (toggle in the top-right corner).
+3. Click **Load unpacked**.
+4. In the file picker, select the **`extension/dist`** folder inside this repo  
+   (the folder that contains `manifest.json` after `pnpm build` — not `extension/` itself).
+5. Confirm the card shows **Meet Dual-Stream Transcription**. Pin it from the puzzle  
+   icon in the toolbar if you want quick access to the popup.
+
+After you change extension code, run `pnpm build` again, then click the **reload**  
+(↻) icon on the extension card in `chrome://extensions`. Chrome keeps serving the  
+previously loaded bundle until you reload.
 
 ### Live Meet workflow
 
@@ -69,9 +81,6 @@ Load unpacked extension in Chrome from `extension/dist`.
 7. Click **Summarize** when done. Capture stops automatically when you leave the
   call, navigate away from Meet, or close the Meet tab.
 
-After any `pnpm build`, press the reload icon on the extension card in  
-`chrome://extensions`. Chrome keeps serving the previously loaded bundle.
-
 ## Extension controls
 
 
@@ -79,7 +88,7 @@ After any `pnpm build`, press the reload icon on the extension card in
 | ---------------------------- | ---------------------------------------------------------------- |
 | Popup → Enable microphone    | Primes mic permission for offscreen capture                      |
 | Popup → Start/Stop capture   | Begins/ends dual-stream session                                  |
-| Side panel mute toggle       | Authoritative mic mute (Ctrl/Cmd+Shift+M)                        |
+| Meet microphone mute         | Mute in Google Meet to stop local transcription                  |
 | Toolbar badge `REC` / `MUTE` | Visible capture indicator (offscreen docs show no tab indicator) |
 | Meet mute observer           | Best-effort sync; can degrade if Meet DOM changes                |
 
