@@ -76,7 +76,7 @@ previously loaded bundle until you reload.
    **in an active meeting**.
 6. The side panel shows live transcripts once capture is running.
 7. Click **Summarize** when done. Capture stops automatically when you leave the
-   call, navigate away from Meet, or close the Meet tab.
+   call or close the Meet tab.
 
 ## Extension controls
 
